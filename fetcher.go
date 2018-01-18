@@ -15,6 +15,8 @@ type Metadata struct {
 	Image       string // image/thumbnail url
 	ImageWidth  int
 	ImageHeight int
+	IconType    string // link rel=icon type (e.g. image/png)
+	IconUrl     string // link rel=icon href (URL)
 }
 
 // Valid check that at least one of the mandatory attributes is non-empty

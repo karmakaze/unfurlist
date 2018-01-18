@@ -110,6 +110,8 @@ type unfurlResult struct {
 	Image       string `json:"image,omitempty"`
 	ImageWidth  int    `json:"image_width,omitempty"`
 	ImageHeight int    `json:"image_height,omitempty"`
+	IconUrl     string `json:"icon"`
+	IconType    string `json:"icon_type"`
 
 	idx int
 }
@@ -151,6 +153,12 @@ func (u *unfurlResult) Merge(u2 *unfurlResult) {
 	}
 	if u.ImageHeight == 0 {
 		u.ImageHeight = u2.ImageHeight
+	}
+	if u.IconType == "" || u.IconUrl == "" {
+		if u2.IconType != "" && u2.IconUrl != "" {
+			u.IconType = u2.IconType
+			u.IconUrl = u2.IconUrl
+		}
 	}
 }
 
@@ -322,6 +330,8 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 		result.Image = meta.Image
 		result.ImageWidth = meta.ImageWidth
 		result.ImageHeight = meta.ImageHeight
+		result.IconUrl = meta.IconUrl
+		result.IconType = meta.IconType
 		goto hasMatch
 	}
 
@@ -337,13 +347,17 @@ func (h *unfurlHandler) processURL(ctx context.Context, i int, link string) *unf
 			goto hasMatch
 		}
 	}
+
+hasMatch:
 	if res := basicParseHTML(chunk); res != nil {
 		if !blacklisted(h.titleBlacklist, res.Title) {
 			result.Merge(res)
 		}
 	}
 
-hasMatch:
+	if absURL, err := absoluteImageURL(result.URL, result.IconUrl); err == nil {
+		result.IconUrl = absURL
+	}
 	switch absURL, err := absoluteImageURL(result.URL, result.Image); err {
 	case errEmptyImageURL:
 	case nil:

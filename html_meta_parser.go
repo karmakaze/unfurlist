@@ -26,9 +26,11 @@ func basicParseHTML(chunk *pageChunk) *unfurlResult {
 		result.Type = "website"
 		// pass Content-Type from response headers as it may have
 		// charset definition like "text/html; charset=windows-1251"
-		if title, desc, err := extractData(chunk.data, chunk.ct); err == nil {
+		if title, desc, iconType, iconUrl, err := extractData(chunk.data, chunk.ct); err == nil {
 			result.Title = title
 			result.Description = desc
+			result.IconType = iconType
+			result.IconUrl = iconUrl
 		}
 	case strings.HasPrefix(result.Type, "video/"):
 		result.Type = "video"
@@ -36,10 +38,10 @@ func basicParseHTML(chunk *pageChunk) *unfurlResult {
 	return result
 }
 
-func extractData(htmlBody []byte, ct string) (title, description string, err error) {
+func extractData(htmlBody []byte, ct string) (title, description, iconType, iconUrl string, err error) {
 	bodyReader, err := charset.NewReader(bytes.NewReader(htmlBody), ct)
 	if err != nil {
-		return "", "", err
+		return "", "", "", "", err
 	}
 	z := html.NewTokenizer(bodyReader)
 tokenize:
@@ -50,8 +52,8 @@ tokenize:
 			if z.Err() == io.EOF {
 				goto finish
 			}
-			return "", "", z.Err()
-		case html.StartTagToken:
+			return "", "", "", "", z.Err()
+		case html.StartTagToken, html.SelfClosingTagToken:
 			name, hasAttr := z.TagName()
 			switch atom.Lookup(name) {
 			case atom.Body:
@@ -62,9 +64,9 @@ tokenize:
 				}
 				if tt := z.Next(); tt == html.TextToken {
 					title = string(z.Text())
-					if description != "" {
+					if description != "" && iconUrl != "" {
 						goto finish
-					}
+                    }
 				}
 			case atom.Meta:
 				if description != "" {
@@ -87,18 +89,41 @@ tokenize:
 				}
 				if isDescription && len(content) > 0 {
 					description = string(content)
-					if title != "" {
+					if title != "" && iconUrl != "" {
 						goto finish
 					}
 				}
+			case atom.Link:
+				var linkRel, linkType, linkHref string
+
+				for hasAttr {
+					var k, v []byte
+					k, v, hasAttr = z.TagAttr()
+					switch string(k) {
+					case "rel":
+						linkRel = string(v)
+					case "type":
+						linkType = string(v)
+					case "href":
+						linkHref = string(v)
+					}
+				}
+				isRelIcon := linkRel == "icon" || strings.HasPrefix(linkRel, "icon ") || strings.Contains(linkRel, " icon ") || strings.HasSuffix(linkRel, " icon")
+				if isRelIcon && linkHref != "" {
+					iconUrl = linkHref
+					iconType = linkType
+				}
+				linkRel = ""
+				linkType = ""
+				linkHref = ""
 			}
 		}
 	}
 finish:
 	if title != "" || description != "" {
-		return title, description, nil
+		return title, description, iconType, iconUrl, nil
 	}
-	return "", "", errNoMetadataFound
+	return "", "", "", "", errNoMetadataFound
 }
 
 var (

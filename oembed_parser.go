@@ -22,5 +22,7 @@ func fetchOembed(ctx context.Context, url string, fn func(context.Context, strin
 		SiteName: meta.Provider,
 		Type:     string(meta.Type),
 		Image:    meta.Thumbnail,
+		IconType: "",
+		IconUrl:  "",
 	}, nil
 }
