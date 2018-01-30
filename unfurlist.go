@@ -154,8 +154,8 @@ func (u *unfurlResult) Merge(u2 *unfurlResult) {
 	if u.ImageHeight == 0 {
 		u.ImageHeight = u2.ImageHeight
 	}
-	if u.IconType == "" || u.IconUrl == "" {
-		if u2.IconType != "" && u2.IconUrl != "" {
+	if u.IconUrl == "" {
+		if u2.IconUrl != "" {
 			u.IconType = u2.IconType
 			u.IconUrl = u2.IconUrl
 		}
